@@ -1127,6 +1127,29 @@ resource "google_storage_bucket_object" "oracle-metadata-import-golden-demo" {
   depends_on = [ google_storage_bucket.google_storage_bucket_governed_data_code_bucket ]
 }
 
+#------------------------------------------------------------------------------------------------
+# Force the dataplex service account to get created (only created on first use)
+#------------------------------------------------------------------------------------------------
+resource "google_project_service_identity" "service_identity_dataplex" {
+  project = var.project_id
+  service = "dataplex.googleapis.com"
+}
+
+resource "time_sleep" "service_identity_dataplex_time_delay" {
+  depends_on      = [google_project_service_identity.service_identity_dataplex]
+  create_duration = "30s"
+}
+
+resource "google_project_iam_member" "dataplex_object_viewer" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-dataplex.iam.gserviceaccount.com"
+
+  depends_on = [
+    time_sleep.service_identity_dataplex_time_delay 
+  ]
+}
+
 
 ####################################################################################
 # Outputs
@@ -1134,3 +1157,4 @@ resource "google_storage_bucket_object" "oracle-metadata-import-golden-demo" {
 output "dataflow_service_account" {
   value = google_service_account.dataflow_service_account.email
 }
+
